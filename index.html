@@ -38,7 +38,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);padding-bott
 .wrap{max-width:600px;margin:0 auto;padding:0 12px}
 
 /* ── HEADER ── */
-.hdr{position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1.5px solid var(--border);padding:10px 14px 8px}
+.hdr{position:relative;z-index:50;background:var(--surface);border-bottom:1.5px solid var(--border);padding:10px 14px 8px}
+@media(min-width:601px){.hdr{position:sticky;top:0;}}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .hdr-left .hdr-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .hdr-left .hdr-title{font-size:17px;font-weight:700;line-height:1.2}
@@ -219,10 +220,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);padding-bott
       <div class="sdrop" id="sdrop">
         <button class="sdrop-btn" id="sdropBtn">💾 Сохранить ▾</button>
         <div class="sdrop-menu" id="sdropMenu">
-          <button class="sdrop-item" id="mi0">📦 В браузер<small>Быстрое сохранение на устройстве</small></button>
-          <button class="sdrop-item" id="mi1">📄 Полный JSON<small>Все данные + как проверять + риски</small></button>
-          <button class="sdrop-item" id="mi2">📋 Чистый JSON<small>Только статусы и заметки</small></button>
-          <button class="sdrop-item" id="mi3">🖨️ Экспорт PDF<small>Открывает страницу для печати</small></button>
+          <button class="sdrop-item" id="mi0">📦 В браузер<small>Автосохранение — данные не потеряются</small></button>
+          <button class="sdrop-item" id="mi1">📄 Полный JSON<small>Все данные: статусы, заметки, фото</small></button>
+          <button class="sdrop-item" id="mi2">📋 Краткий JSON<small>Только статусы и заметки</small></button>
+          <button class="sdrop-item" id="mi3">🖨️ Экспорт / Печать<small>Открывает отчёт для печати или PDF</small></button>
         </div>
       </div>
       <button class="icon-btn" id="loadBtn" title="Загрузить JSON">📂</button>
@@ -304,6 +305,35 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);padding-bott
 </div>
 
 <input type="file" id="loadInput" accept=".json" style="display:none">
+
+<!-- Photo Viewer -->
+<div id="photoViewer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:10002;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
+    <span id="photoViewerCount" style="color:rgba(255,255,255,.6);font-size:13px;"></span>
+    <button id="photoViewerClose" style="width:36px;height:36px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+  </div>
+  <img id="photoViewerImg" src="" alt="" style="max-width:100%;max-height:calc(100vh - 100px);object-fit:contain;padding:0 12px;">
+  <div style="display:flex;gap:16px;margin-top:16px;">
+    <button id="photoViewerPrev" style="width:44px;height:44px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;">‹</button>
+    <button id="photoViewerNext" style="width:44px;height:44px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;">›</button>
+  </div>
+</div>
+
+<!-- JSON Modal для iOS -->
+<div id="jsonModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;align-items:flex-end;justify-content:center;">
+  <div style="background:#fff;width:100%;max-width:600px;border-radius:16px 16px 0 0;padding:20px;max-height:85vh;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#1C1A17;" id="jsonModalTitle">checklist.json</div>
+        <div style="font-size:11px;color:#A09D98;margin-top:2px;">Нажми «Скопировать» → вставь в Заметки или отправь себе</div>
+      </div>
+      <button onclick="document.getElementById('jsonModal').style.display='none'" style="width:32px;height:32px;border-radius:50%;border:none;background:#F0EEE9;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <textarea id="jsonContent" readonly style="flex:1;min-height:180px;max-height:40vh;font-family:monospace;font-size:11px;border:1.5px solid #E4E2DC;border-radius:8px;padding:10px;resize:none;color:#1C1A17;background:#F8F7F5;"></textarea>
+    <button id="jsonCopyBtn" style="height:48px;background:#C47B1A;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">📋 Скопировать JSON</button>
+    <button id="jsonShareBtn" style="height:44px;background:#F0EEE9;color:#1C1A17;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">↗ Поделиться файлом</button>
+  </div>
+</div>
 
 <script>
 const SECTIONS = [
@@ -847,7 +877,7 @@ function renderItem(item){
 function buildThumbs(id){
   if(!photos[id]) return '';
   return photos[id].map(function(b,i){
-    return '<div class="thumb"><img src="'+b+'" alt=""><button class="thumb-del" data-id="'+id+'" data-idx="'+i+'">×</button></div>';
+    return '<div class="thumb"><img src="'+b+'" alt="" data-view-id="'+id+'" data-view-idx="'+i+'" style="cursor:pointer"><button class="thumb-del" data-id="'+id+'" data-idx="'+i+'">×</button></div>';
   }).join('');
 }
 
@@ -902,6 +932,12 @@ function handleTap(e) {
     schedSave(); return;
   }
 
+  // thumb view (open photo fullscreen)
+  if(el.tagName==='IMG' && el.dataset.viewId){
+    openPhotoViewer(el.dataset.viewId, parseInt(el.dataset.viewIdx));
+    return;
+  }
+
   // act button
   if(el.id==='actBtn'){ downloadAct(); return; }
 
@@ -923,10 +959,10 @@ function handleTap(e) {
     return;
   }
   // save menu items (button elements — work fine on iOS)
-  if(el.id==='mi0'){ saveData(); closeDrop(); return; }
-  if(el.id==='mi1'){ exportFull(); closeDrop(); return; }
-  if(el.id==='mi2'){ exportClean(); closeDrop(); return; }
-  if(el.id==='mi3'){ exportPDF(); closeDrop(); return; }
+  if(el.id==='mi0'){ closeDrop(); saveData(); showToast('✅ Сохранено в браузере'); return; }
+  if(el.id==='mi1'){ closeDrop(); setTimeout(function(){ exportFull(); }, 50); return; }
+  if(el.id==='mi2'){ closeDrop(); setTimeout(function(){ exportClean(); }, 50); return; }
+  if(el.id==='mi3'){ closeDrop(); setTimeout(function(){ exportPDF(); }, 50); return; }
 
   // load / reset
   if(el.id==='loadBtn'){ document.getElementById('loadInput').click(); return; }
@@ -1156,12 +1192,71 @@ function loadData(){
   }catch(e){}
 }
 
+// ── TOAST ──
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1C1A17;color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none;transition:opacity .3s;white-space:nowrap;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.style.opacity = '0'; }, 2500);
+}
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+// ── PHOTO VIEWER ──
+var pvCurrentId = null, pvCurrentIdx = 0;
+function openPhotoViewer(id, idx) {
+  pvCurrentId = id;
+  pvCurrentIdx = idx;
+  renderPhotoViewer();
+  document.getElementById('photoViewer').style.display = 'flex';
+}
+function renderPhotoViewer() {
+  var arr = photos[pvCurrentId] || [];
+  document.getElementById('photoViewerImg').src = arr[pvCurrentIdx] || '';
+  document.getElementById('photoViewerCount').textContent = (pvCurrentIdx+1) + ' / ' + arr.length;
+  document.getElementById('photoViewerPrev').style.opacity = pvCurrentIdx > 0 ? '1' : '0.3';
+  document.getElementById('photoViewerNext').style.opacity = pvCurrentIdx < arr.length-1 ? '1' : '0.3';
+}
+
+function isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function fallbackCopy(textarea) {
+  textarea.select();
+  textarea.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); showToast('✅ JSON скопирован'); }
+  catch(e) { showToast('Выдели текст вручную и скопируй'); }
+}
+
 function exportFull(){
-  dl(JSON.stringify({st:st,notes:notes,photos:photos,form:getForm(),ts:Date.now(),type:'full'},null,2),'checklist_full_'+ts()+'.json','application/json');
+  var content = JSON.stringify({st:st,notes:notes,photos:photos,form:getForm(),ts:Date.now(),type:'full'},null,2);
+  var name = 'checklist_full_'+ts()+'.json';
+  if(isIOS()){ showJsonModal(content, name); } else { dl(content, name, 'application/json'); }
 }
 function exportClean(){
-  dl(JSON.stringify({st:st,notes:notes,form:getForm(),ts:Date.now(),type:'clean'},null,2),'checklist_clean_'+ts()+'.json','application/json');
+  var content = JSON.stringify({st:st,notes:notes,form:getForm(),ts:Date.now(),type:'clean'},null,2);
+  var name = 'checklist_clean_'+ts()+'.json';
+  if(isIOS()){ showJsonModal(content, name); } else { dl(content, name, 'application/json'); }
 }
+
+function showJsonModal(content, name){
+  var modal = document.getElementById('jsonModal');
+  var textarea = document.getElementById('jsonContent');
+  var title = document.getElementById('jsonModalTitle');
+  title.textContent = name;
+  textarea.value = content;
+  modal.style.display = 'flex';
+  setTimeout(function(){ textarea.select(); }, 100);
+}
+
 function dl(content,name,mime){
   var blob = new Blob([content], {type: mime+';charset=utf-8'});
   var url = URL.createObjectURL(blob);
@@ -1170,7 +1265,7 @@ function dl(content,name,mime){
   a.download=name;
   document.body.appendChild(a);
   a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
 }
 function ts(){ return new Date().toISOString().slice(0,10); }
 
@@ -1207,15 +1302,48 @@ function resetAll(){
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', initFormSave); } else { initFormSave(); }
 })();
 
+// ── ПРОСМОТРЩИК HTML-ОТЧЁТОВ (работает и на iOS) ──
+function openHtmlInNewTab(html) {
+  if(isIOS()) {
+    // На iOS window.open блокируется — показываем встроенный вьювер
+    var viewer = document.getElementById('htmlViewer');
+    if(!viewer) {
+      viewer = document.createElement('div');
+      viewer.id = 'htmlViewer';
+      viewer.style.cssText = 'position:fixed;inset:0;z-index:10001;background:#fff;display:flex;flex-direction:column;';
+      viewer.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#1C1A17;color:#fff;flex-shrink:0;">' +
+          '<span style="font-size:14px;font-weight:700;">📄 Отчёт</span>' +
+          '<div style="display:flex;gap:10px;align-items:center;">' +
+            '<button id="viewerPrint" style="background:#C47B1A;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">🖨️ Печать/PDF</button>' +
+            '<button id="viewerClose" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer;">✕ Закрыть</button>' +
+          '</div>' +
+        '</div>' +
+        '<iframe id="viewerFrame" style="flex:1;border:none;width:100%;" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>';
+      document.body.appendChild(viewer);
+      document.getElementById('viewerClose').addEventListener('click', function(){ viewer.style.display='none'; });
+      document.getElementById('viewerPrint').addEventListener('click', function(){
+        var frame = document.getElementById('viewerFrame');
+        frame.contentWindow.print();
+      });
+    }
+    var frame = document.getElementById('viewerFrame');
+    viewer.style.display = 'flex';
+    frame.srcdoc = html;
+  } else {
+    // На десктопе — открываем новую вкладку
+    var w = window.open('', '_blank');
+    if(w) { w.document.open(); w.document.write(html); w.document.close(); }
+  }
+}
+
 // PDF: открываем HTML-страницу с чистым отчётом для печати/сохранения в PDF
 function exportPDF() {
   const form = getForm();
-  const allItems = SECTIONS.flatMap(s => s.items.map(i => ({...i, secTitle: s.title})));
-  // Генерируем полную HTML-страницу для печати (все пункты)
   const rows = SECTIONS.map(sec => {
     const secRows = sec.items.map(item => {
       const status = st[item.id] || 'none';
-      const statusLabel = status==='ok'?'✓ OK':status==='def'?'✗ Дефект':status==='skip'?'○ Пропуск':status==='none'?'—':status;
+      const statusLabel = status==='ok'?'✓ OK':status==='def'?'✗ Дефект':status==='skip'?'○ Пропуск':'—';
       const note = notes[item.id] || '';
       const bg = status==='def'?'#fff0f0':status==='ok'?'#f0fff4':status==='skip'?'#f5f5f5':'';
       return `<tr style="background:${bg}">
@@ -1235,7 +1363,7 @@ function exportPDF() {
   const skips = all.filter(i=>st[i.id]==='skip').length;
 
   const html = `<!DOCTYPE html>
-<html lang="ru"><head><meta charset="UTF-8">
+<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Отчёт приёмки ЖК</title>
 <style>
 body{font-family:Arial,sans-serif;font-size:11px;color:#222;margin:20px}
@@ -1254,10 +1382,12 @@ td{padding:6px 8px;border:1px solid #ddd;vertical-align:top;font-size:11px}
 .v-skip{background:#f5f5f5;color:#555}
 .sign{margin-top:30px;display:flex;gap:60px}
 .sign-line{border-top:1px solid #222;margin-top:25px;padding-top:4px;color:#888;min-width:180px;font-size:10px}
-@media print{body{margin:10px}@page{margin:12mm}}
+.print-btn{display:block;margin:0 auto 16px;padding:10px 24px;background:#C47B1A;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+@media print{.print-btn{display:none}body{margin:10px}@page{margin:12mm}}
 </style>
 </head>
 <body>
+<button class="print-btn" onclick="window.print()">🖨️ Распечатать / Сохранить PDF</button>
 <h1>Отчёт приёмки ЖК</h1>
 <div class="meta">
   <b>Адрес:</b> ${form.address||'—'} &nbsp;&nbsp;
@@ -1281,25 +1411,16 @@ td{padding:6px 8px;border:1px solid #ddd;vertical-align:top;font-size:11px}
   <div><div class="sign-line">Подпись застройщика</div></div>
   <div><div class="sign-line">Подпись покупателя</div></div>
 </div>
-<script>window.onload=function(){window.print();}<\/script>
 </body></html>`;
 
-  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.target = '_blank';
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  openHtmlInNewTab(html);
 }
 
 function downloadAct() {
   const form = getForm();
   const allItems = SECTIONS.flatMap(s => s.items.map(i => ({...i, secTitle: s.title})));
   const defs = allItems.filter(i => st[i.id]==='def');
-  if (!defs.length) return;
+  if (!defs.length) { alert('Нет зафиксированных дефектов'); return; }
   const sevLabel = s => s==='red'?'🔴 Критично':s==='orange'?'🟠 Важно':'🟡 Внимание';
   const rows = defs.map((item,idx) =>
     `<tr><td>${idx+1}</td><td>${item.secTitle}</td><td>${item.t}</td><td>${sevLabel(item.s)}</td><td>${notes[item.id]||'—'}</td></tr>`
@@ -1307,9 +1428,10 @@ function downloadAct() {
   const crits=defs.filter(i=>i.s==='red').length;
   const warns=defs.filter(i=>i.s==='orange').length;
   const attns=defs.filter(i=>i.s==='yellow').length;
-  const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Смотровой лист</title>
-<style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px;color:#222;max-width:900px;margin:0 auto}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#555;font-weight:normal;margin-bottom:20px}.info{margin-bottom:20px;font-size:12px}.info p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#f0f0f0;padding:8px;text-align:left;border:1px solid #ccc;font-size:11px}td{padding:7px 8px;border:1px solid #ddd;vertical-align:top;font-size:11px}tr:nth-child(even){background:#fafafa}.sign{margin-top:40px;display:flex;gap:60px}.sign-line{border-top:1px solid #222;margin-top:30px;padding-top:4px;color:#888;min-width:200px}@media print{body{padding:10px}}</style>
+  const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Смотровой лист</title>
+<style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px;color:#222;max-width:900px;margin:0 auto}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#555;font-weight:normal;margin-bottom:20px}.info{margin-bottom:20px;font-size:12px}.info p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#f0f0f0;padding:8px;text-align:left;border:1px solid #ccc;font-size:11px}td{padding:7px 8px;border:1px solid #ddd;vertical-align:top;font-size:11px}tr:nth-child(even){background:#fafafa}.sign{margin-top:40px;display:flex;gap:60px}.sign-line{border-top:1px solid #222;margin-top:30px;padding-top:4px;color:#888;min-width:200px}.print-btn{display:block;margin:0 auto 16px;padding:10px 24px;background:#C47B1A;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}@media print{.print-btn{display:none}body{padding:10px}}</style>
 </head><body>
+<button class="print-btn" onclick="window.print()">🖨️ Распечатать / Сохранить PDF</button>
 <h1>Смотровой лист дефектов</h1><h2>Квартира / объект</h2>
 <div class="info"><p><b>Адрес:</b> ${form.address||'—'}</p><p><b>Дата осмотра:</b> ${form.date||'—'}</p></div>
 <table><thead><tr><th>№</th><th>Раздел</th><th>Пункт</th><th>Критичность</th><th>Заметка</th></tr></thead>
@@ -1317,14 +1439,7 @@ function downloadAct() {
 <p><b>Итого дефектов: ${defs.length}</b> &nbsp; 🔴 Критических: ${crits} | 🟠 Важных: ${warns} | 🟡 Внимание: ${attns}</p>
 <div class="sign"><div><div class="sign-line">Подпись застройщика</div></div><div><div class="sign-line">Подпись покупателя</div></div></div>
 </body></html>`;
-  var blob2 = new Blob([html], {type:'text/html;charset=utf-8'});
-  var url2 = URL.createObjectURL(blob2);
-  var a = document.createElement('a');
-  a.href = url2;
-  a.download = 'smotrovy_list_' + (form.date||new Date().toISOString().slice(0,10)) + '.html';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url2); }, 100);
+  openHtmlInNewTab(html);
 }
 
 // ── INIT ──
@@ -1332,6 +1447,46 @@ function init() {
   document.getElementById('fDate').value = new Date().toISOString().slice(0,10);
   loadData();
   render();
+
+  // Photo viewer buttons
+  document.getElementById('photoViewerClose').addEventListener('click', function(){
+    document.getElementById('photoViewer').style.display = 'none';
+  });
+  document.getElementById('photoViewerPrev').addEventListener('click', function(){
+    if(pvCurrentIdx > 0){ pvCurrentIdx--; renderPhotoViewer(); }
+  });
+  document.getElementById('photoViewerNext').addEventListener('click', function(){
+    if(pvCurrentIdx < (photos[pvCurrentId]||[]).length-1){ pvCurrentIdx++; renderPhotoViewer(); }
+  });
+  // Close viewer on backdrop tap
+  document.getElementById('photoViewer').addEventListener('click', function(e){
+    if(e.target === this) this.style.display = 'none';
+  });
+  document.getElementById('jsonCopyBtn').addEventListener('click', function(){
+    var t = document.getElementById('jsonContent');
+    var val = t.value;
+    if(navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(val).then(function(){
+        showToast('✅ JSON скопирован в буфер');
+      }).catch(function(){ fallbackCopy(t); });
+    } else {
+      fallbackCopy(t);
+    }
+  });
+
+  document.getElementById('jsonShareBtn').addEventListener('click', function(){
+    var content = document.getElementById('jsonContent').value;
+    var name = document.getElementById('jsonModalTitle').textContent;
+    if(navigator.share && navigator.canShare) {
+      var file = new File([content], name, {type:'application/json'});
+      if(navigator.canShare({files:[file]})) {
+        navigator.share({files:[file], title: name}).catch(function(){});
+        return;
+      }
+    }
+    // Fallback — просто копируем
+    showToast('Поделиться файлами не поддерживается — используй копирование');
+  });
 }
 
 if(document.readyState==='loading'){
