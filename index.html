@@ -1206,6 +1206,8 @@ function showToast(msg) {
   clearTimeout(t._timer);
   t._timer = setTimeout(function(){ t.style.opacity = '0'; }, 2500);
 }
+
+function isIOS(){
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 }
 
