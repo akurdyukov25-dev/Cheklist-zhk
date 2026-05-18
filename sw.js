@@ -1,4 +1,4 @@
-const CACHE = 'checklist-zhk-v1';
+const CACHE = 'checklist-zhk-v2';
 const FILES = [
   './',
   './index.html',
